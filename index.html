@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WebCodecs VideoEncoder Dryrun</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+</head>
+
+<body>
+    <div class="container container-md">
+        <main>
+            <div class="py-5 text-center">
+                <h1>VideoEncoder Configuration</h1>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <div class="input-group mb-3">
+                        <label for="h264_profile" class="input-group-text">H.264 profile</label>
+                        <select id="h264_profile" name="h264_profile" class="form-select">
+                            <option value="baseline" selected>baseline</option>
+                            <option value="constrained_baseline">constrained baseline</option>
+                            <option value="main">main</option>
+                            <option value="high">high</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="input-group mb-3">
+                        <label for="h264_level" class="input-group-text" >H.264 level</label>
+                        <select id="h264_level" name="h264_level" class="form-select">
+                            <option value="10">1.0</option>
+                            <option value="11">1.1</option>
+                            <option value="12">1.2</option>
+                            <option value="13">1.3</option>
+                            <option value="20">2.0</option>
+                            <option value="21">2.1</option>
+                            <option value="22">2.2</option>
+                            <option value="30">3.0</option>
+                            <option value="31">3.1</option>
+                            <option value="32">3.2</option>
+                            <option value="40">4.0</option>
+                            <option value="41">4.1</option>
+                            <option value="42">4.2</option>
+                            <option value="50">5.0</option>
+                            <option value="51">5.1</option>
+                            <option value="52" selected>5.2</option>
+                            <option value="60">6.0</option>
+                            <option value="61">6.1</option>
+                            <option value="62">6.2</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="input-group mb-3">
+                        <label for="framerate" class="input-group-text">Encoding framerate</label>
+                        <select id="framerate" name="framerate" class="form-select">
+                            <option value="30" selected>30</option>
+                            <option value="60">60</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <div class="input-group mb-3">
+                        <label for="codec" class="input-group-text" >Codec string</label>
+                        <input class="form-control" id="codec" name="codec" type="text" disabled>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <div class="input-group mb-3">
+                        <label for="resolution" class="input-group-text">Encoding resolution</label>
+                        <select id="resolution" name="resolution" class="form-select">
+                            <option value="480p">480p (852x480)</option>
+                            <option value="720p">720p (1280x720)</option>
+                            <option value="1080p" selected>1080p (1920x1080)</option>
+                            <option value="1440p">1440p (2560x1440)</option>
+                            <option value="4K">4K (3840x2160)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="input-group mb-3">
+                        <label for="bitrate" class="input-group-text">Bitrate</label>
+                        <input type="number" name="bitrate" id="bitrate" step="1" value="2000000" class="form-control">
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="input-group mb-3">
+                        <label for="bitrate_mode" class="input-group-text">Bitrate mode</label>
+                        <select id="bitrate_mode" name="bitrate_mode" class="form-select">
+                            <option value="variable" selected>variable</option>
+                            <option value="constant">keep</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <div class="input-group mb-3">
+                        <label for="nalu_format" class="input-group-text">H.264 NALU format</label>
+                        <select id="nalu_format" name="nalu_format" class="form-select">
+                            <option value="annexb" selected>annexb</option>
+                            <option value="avc">keep</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="input-group mb-3">
+                        <label for="hardware_acceleration" class="input-group-text">Hardware acceleration</label>
+                        <select id="hardware_acceleration" name="hardware_acceleration" class="form-select">
+                            <option value="prefer-hardware" selected>prefer-hardware</option>
+                            <option value="prefer-software">prefer-software</option>
+                            <option value="no-preference">no-preference</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="input-group mb-3">
+                        <label for="frame_representation" class="input-group-text">Frame representation</label>
+                        <select id="frame_representation" name="frame_representation" class="form-select">
+                            <option value="cpu" selected>Main memory (YUV420p)</option>
+                            <option value="gpu">GPU memory (WebGL texture)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <div class="input-group mb-3">
+                        <label for="alpha_option" class="input-group-text">Alpha option</label>
+                        <select id="alpha_option" name="alpha_option" class="form-select">
+                            <option value="discard" selected>discard</option>
+                            <option value="keep">keep</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="input-group mb-3">
+                        <label for="latency_mode" class="input-group-text">Latency mode</label>
+                        <select id="latency_mode" name="latency_mode" class="form-select">
+                            <option value="quality" selected>quality</option>
+                            <option value="realtime">realtime</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <label for="config_supported" class="form-label">Video encoder configuration supported:</label>
+                    <textarea name="config_supported" id="config_supported" rows="20" cols="80" class="form-control" disabled></textarea>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <button id="run" class="w-100 btn btn-primary">Exercise encoder</button>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.6.1.min.js" integrity="sha256-o88AwQnZB+VDvE9tvIXrMQaPlFFSUTR+nldQm1LuPXQ=" crossorigin="anonymous"></script>
+
+    <script>
+        const H264_PROFILES = {
+            'baseline': 66,
+            'constrained_baseline': 66,
+            'main': 77,
+            'high': 100
+        };
+
+        const ENCODING_DIMENSIONS = {
+            '480p': { width: 852, height: 480 },
+            '720p': { width: 1280, height: 720 },
+            '1080p': { width: 1920, height: 1080 },
+            '1440p': { width: 2560, height: 1440 },
+            '4K': { width: 3840, height: 2160 }
+        };
+
+
+
+
+        function isConfigSupported() {
+            const userConfig = {
+                codec: $('input#codec').val(),
+                ...ENCODING_DIMENSIONS[$('select#resolution').val()],
+                bitrate: parseInt($('input#bitrate').val()),
+                framerate: parseInt($('select#framerate').val()),
+                hardwareAcceleration: $('select#hardware_acceleration').val(),
+                alpha: $('select#alpha_option').val(),
+                bitrateMode: $('select#bitrate_mode').val(),
+                latencyMode: $('select#latency_mode').val(),
+            };
+
+            console.warn(userConfig);
+
+            $('textarea#config_supported').val('');
+
+            VideoEncoder.isConfigSupported(userConfig).then(({supported, config }) => {
+                if (supported) {
+                    $('textarea#config_supported').val('Encoder configuration is supported, returned (pruned) configuration is: \n' + JSON.stringify(config, null, 3));
+                } else {
+                    $('textarea#config_supported').val('Encoder configuration is NOT supported, the probed user configuration was:\n' + JSON.stringify(userConfig, null, 3));
+                }
+            }).catch(error => {
+                console.error(error);
+                $('textarea#config_supported').val('An error occurred when calling VideoEncoder.isConfigSupported:\n' + error);
+            });
+        }
+
+        $('select#framerate').change(isConfigSupported);
+        $('select#resolution').change(isConfigSupported);
+        $('input#bitrate').change(isConfigSupported);
+        $('select#bitrate_mode').change(isConfigSupported);
+        $('select#hardware_acceleration').change(isConfigSupported);
+        $('select#alpha_option').change(isConfigSupported);
+        $('select#latency_mode').change(isConfigSupported);
+
+        function updateCodecString() {
+            const profile = $('select#h264_profile').val();
+            const level = parseInt($('select#h264_level').val());
+
+            const codec = `avc1.${H264_PROFILES[profile].toString(16).padStart(2, '0')}${profile === 'constrained_baseline' ? 'e0' : '00'}${level.toString(16).padStart(2, '0')}`;
+            $('input#codec').val(codec);
+        
+            isConfigSupported();
+        }
+
+        $('select#h264_profile').change(updateCodecString);
+        $('select#h264_level').change(updateCodecString);
+        
+        updateCodecString();
+
+    </script>
+</body>
+</html>
