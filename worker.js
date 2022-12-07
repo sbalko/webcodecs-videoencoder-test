@@ -145,7 +145,6 @@ async function isConfigSupported(userConfig) {
 }
 
 self.onmessage = event => {
-    debugger;
     if (event.data.direction === 'request') {
         switch(event.data.topic) {
             case 'start':
