@@ -292,25 +292,29 @@
         $('select#h264_profile').change(updateCodecString);
         $('select#h264_level').change(updateCodecString);
         
+        // Pre-fill codec string with default selection of H.264 profile and level form fields (triggers a check whether the resulting VideoEncoderConfig is supported).
         updateCodecString();
 
         function randomFrameData({width, height}) {
             return new Uint8Array(width * height * 12 / 8).map(() => Math.round(Math.random() * 255));
         }
 
-        async function getNextFrame(frameNo, userConfig, canvas) {
+        async function getNextFrame(frameNo, userConfig, webGlContext) {
             const duration = 1000000/userConfig.framerate;
             const timestamp = Math.ceil(frameNo * duration);
 
-            if (canvas) {
-                // TODO: can we have random pixels?
-                return new VideoFrame(canvas, {
+            if (webGlContext) {
+                // Fill with solid, random color.
+                webGlContext.viewport(0, 0, webGlContext.canvas.width, webGlContext.canvas.height);
+                webGlContext.clearColor(Math.random(), Math.random(), Math.random(), 0);
+                webGlContext.clear(webGlContext.COLOR_BUFFER_BIT);
+                return new VideoFrame(webGlContext.canvas, {
                     timestamp,
                     duration,
                     alpha: userConfig.alpha,
                 });
             } else {
-                // We assume a tightly packed layout
+                // We assume a tightly packed layout, fill with white noise.
                 const planes = randomFrameData(userConfig);
 
                 return new VideoFrame(planes, {
@@ -328,30 +332,30 @@
                 const canvas = document.createElement('canvas');
                 canvas.width = userConfig.width;
                 canvas.height = userConfig.height;
-                canvas.getContext('webgl2');
+                const context = canvas.getContext('webgl2');
 
-                return canvas;
+                return context;
             }
         }
 
         async function waitForIdle(encoder) {
             if (encoder.encodeQueueSize > MAX_ENCODE_QUEUE_SIZE) {
-                logDryrun('Encoder queue clogged up, waiting to process inbound frames...');
+                logDryrun(`Encoder queue clogged up with ${encoder.encodeQueueSize} frames, waiting to reduce to ${MAX_ENCODE_QUEUE_SIZE} or less.`);
                 return new Promise(resolve => {
                     encoder.ondequeue = () => {
+                        logDryrun(`Dequeue event received, encoder queue size is now: ${encoder.encodeQueueSize}`);
                         if (encoder.encodeQueueSize <= MAX_ENCODE_QUEUE_SIZE) {
-                            logDryrun('Encoder queue size reduced, resuming...');
+                            logDryrun(`Encoder queue size reduced to ${encoder.encodeQueueSize}, resuming.`);
                             resolve();
                         }
                     }
                 })
             } 
         }
-        async function exerciseEncoder() {
-            $('button#run').attr('disabled', 'disabled');
 
+        async function exerciseEncoder() {
             const userConfig = getUserConfiguration();
-            const canvas =  optionallyCreateCanvas(userConfig);
+            const webGlContext = optionallyCreateCanvas(userConfig);
 
             logDryrun('Now performing dry-run of VideoEncoder API.');
 
@@ -367,7 +371,7 @@
                 }
             });
 
-            logDryrun('VideoEncoder instance created.');
+            logDryrun(`VideoEncoder instance created, encoder status is: ${encoder.state}`);
 
             encoder.configure(userConfig);
 
@@ -377,7 +381,7 @@
                 await waitForIdle(encoder);
 
                 logDryrun(`Constructing ${frameNo}-th frame.`);
-                const frame = await getNextFrame(frameNo, userConfig, canvas);
+                const frame = await getNextFrame(frameNo, userConfig, webGlContext);
 
                 logDryrun(`--> Passing ${frameNo}-th frame to encoder.`);
                 encoder.encode(frame);
@@ -395,13 +399,23 @@
             if (chunkNo === DRYRUN_NUM_FRAMES) {
                 logDryrun(`All ${DRYRUN_NUM_FRAMES} frames were encoded into H.264 bitstream packages.`);
             } else {
-                errorDryrun(`Only ${chunkNo} H.264 bitstream packages were generated out of ${DRYRUN_NUM_FRAMES} frames`);
+                errorDryrun(`Only ${chunkNo} H.264 bitstream packages were generated out of ${DRYRUN_NUM_FRAMES} frames.`);
             }
 
-            logDryrun('Done');
+            logDryrun('Done.');
         }
 
-        $('button#run').click(exerciseEncoder);
+        $('button#run').click(async () => {
+            $('button#run').attr('disabled', 'disabled');
+
+            try {
+                await exerciseEncoder();
+            } catch (error) {
+                errorDryrun('An error occurred during the encoder dry-run: ' + error);
+            } finally {
+                $('button#run').removeAttr('disabled');
+            }
+        });
     </script>
 </body>
 </html>
