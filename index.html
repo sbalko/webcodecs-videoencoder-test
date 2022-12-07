@@ -204,6 +204,8 @@
         const DRYRUN_NUM_FRAMES = 100;
         const MAX_ENCODE_QUEUE_SIZE = 3;
 
+        const worker = new Worker('./worker.js?cachebust=' + Math.random());
+
         function log(selector, line) {
             $(selector).val(`${$('textarea#dryrun_encoder').val()}\n${line}`);
         }
@@ -244,30 +246,47 @@
             };
         }
 
-        async function isConfigSupported() {
-            if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') {
-                errorConfig('WebCodecs API is not supported in this browser.');
-                return;
-            }
+        function send(topic, payload) {
+            worker.postMessage({
+                topic,
+                direction: 'request',
+                payload
+            });
+        }
 
+        function isConfigSupported() {
             const userConfig = getUserConfiguration();
 
             $('textarea#config_supported').val('');
             $('textarea#dryrun_encoder').val('');
             $('button#run').attr('disabled', 'disabled');
 
-            try {
-                const { supported, config } = await VideoEncoder.isConfigSupported(userConfig);
-
-                if (supported) {
-                    logConfig(`Encoder configuration is supported:\n${JSON.stringify(userConfig, null, 3)}\nThe returned (pruned) configuration is:\n${JSON.stringify(config, null, 3)}`);
-                    $('button#run').removeAttr('disabled');
-                } else {
-                    errorConfig(`Encoder configuration is NOT supported, the probed user configuration was:\n${JSON.stringify(userConfig, null, 3)}`);
+            worker.onmessage = event => {
+                if (event.data.direction === 'response') {
+                    switch(event.data.topic) {
+                        case 'log':
+                            if (event.data.payload.severity === 'info') {
+                                logConfig(event.data.payload.line);
+                            } else {
+                                errorConfig(event.data.payload.line);
+                            }
+                            break;
+                        case 'error':
+                            errorConfig(`Encoder configuration is NOT supported, the probed user configuration was:\n${JSON.stringify(userConfig, null, 3)}`);
+                            break;
+                        case 'done':
+                            $('button#run').removeAttr('disabled'); 
+                            logConfig(`Encoder configuration is supported:\n${JSON.stringify(userConfig, null, 3)}\nThe returned (pruned) configuration is:\n${JSON.stringify(event.data.payload.config, null, 3)}`);
+                            break;
+                        default:
+                            errorConfig('Worker sent invalid message: ' + event.data);
+                    }
                 }
-            } catch(error) {
-                errorConfig('An error occurred when calling VideoEncoder.isConfigSupported:\n' + error);
-            }
+            };
+
+            send('support', {
+                userConfig,
+            });
         }
 
         $('select#framerate').change(isConfigSupported);
@@ -295,116 +314,35 @@
         // Pre-fill codec string with default selection of H.264 profile and level form fields (triggers a check whether the resulting VideoEncoderConfig is supported).
         updateCodecString();
 
-        function randomFrameData({width, height}) {
-            return new Uint8Array(width * height * 12 / 8).map(() => Math.round(Math.random() * 255));
-        }
-
-        async function getNextFrame(frameNo, userConfig, webGlContext) {
-            const duration = 1000000/userConfig.framerate;
-            const timestamp = Math.ceil(frameNo * duration);
-
-            if (webGlContext) {
-                // Fill with solid, random color.
-                webGlContext.viewport(0, 0, webGlContext.canvas.width, webGlContext.canvas.height);
-                webGlContext.clearColor(Math.random(), Math.random(), Math.random(), 0);
-                webGlContext.clear(webGlContext.COLOR_BUFFER_BIT);
-
-                const bitmap = await createImageBitmap(webGlContext.canvas);
-                return new VideoFrame(bitmap, {
-                    timestamp,
-                    duration,
-                    alpha: userConfig.alpha,
-                });
-            } else {
-                // We assume a tightly packed layout, fill with white noise.
-                const planes = randomFrameData(userConfig);
-
-                return new VideoFrame(planes, {
-                    format: 'I420',
-                    codedWidth: userConfig.width,
-                    codedHeight: userConfig.height,
-                    timestamp,
-                    duration
-                });
-            }
-        }
-
-        function optionallyCreateCanvas(userConfig) {
-            if ($('select#frame_representation').val() === 'gpu') {
-                const canvas = document.createElement('canvas');
-                canvas.width = userConfig.width;
-                canvas.height = userConfig.height;
-                const context = canvas.getContext('webgl2');
-
-                return context;
-            }
-        }
-
-        async function waitForIdle(encoder) {
-            if (encoder.encodeQueueSize > MAX_ENCODE_QUEUE_SIZE) {
-                logDryrun(`Encoder queue clogged up with ${encoder.encodeQueueSize} frames, waiting to reduce to ${MAX_ENCODE_QUEUE_SIZE} or less.`);
-                return new Promise(resolve => {
-                    encoder.ondequeue = () => {
-                        logDryrun(`Dequeue event received, encoder queue size is now: ${encoder.encodeQueueSize}`);
-                        if (encoder.encodeQueueSize <= MAX_ENCODE_QUEUE_SIZE) {
-                            logDryrun(`Encoder queue size reduced to ${encoder.encodeQueueSize}, resuming.`);
-                            resolve();
+        function exerciseEncoder() {
+            return new Promise((resolve, reject) => {
+                worker.onmessage = event => {
+                    if (event.data.direction === 'response') {
+                        switch(event.data.topic) {
+                            case 'log':
+                                if (event.data.payload.severity === 'info') {
+                                    logDryrun(event.data.payload.line);
+                                } else {
+                                    errorDryrun(event.data.payload.line);
+                                }
+                                break;
+                            case 'error':
+                                reject(new Error(event.data.payload.message));
+                                break;
+                            case 'done':
+                                resolve();
+                                break;
+                            default:
+                                errorDryrun('Worker sent invalid message: ' + event.data);
                         }
                     }
-                })
-            } 
-        }
+                };
 
-        async function exerciseEncoder() {
-            const userConfig = getUserConfiguration();
-            const webGlContext = optionallyCreateCanvas(userConfig);
-
-            logDryrun('Now performing dry-run of VideoEncoder API.');
-
-            let chunkNo = 0;
-
-            const encoder = new VideoEncoder({
-                output: (chunk, metadata) => {
-                    console.warn(metadata);
-                    logDryrun(`<-- Chunk ${chunkNo++} (type ${chunk.type}) of ${chunk.byteLength} bytes at timestamp ${chunk.timestamp} micros produced.`);
-                },
-                error: event => {
-                    errorDryrun('Error during encoder dryrun: ' + event);
-                }
+                send('start', {
+                    userConfig: getUserConfiguration(),
+                    useWebGl: $('select#frame_representation').val() === 'gpu',
+                });
             });
-
-            logDryrun(`VideoEncoder instance created, encoder status is: ${encoder.state}`);
-
-            encoder.configure(userConfig);
-
-            logDryrun(`VideoEncoder configured, encoder status is: ${encoder.state}`);
-
-            for (let frameNo = 0; frameNo < DRYRUN_NUM_FRAMES; ++frameNo) {
-                await waitForIdle(encoder);
-
-                logDryrun(`Constructing ${frameNo}-th frame.`);
-                const frame = await getNextFrame(frameNo, userConfig, webGlContext);
-
-                logDryrun(`--> Passing ${frameNo}-th frame to encoder.`);
-                encoder.encode(frame);
-
-                logDryrun(`Closing ${frameNo}-th frame.`);
-                frame.close();
-            }
-
-            logDryrun('Flushing encoder.')
-            await encoder.flush();
-
-            logDryrun(`Closing encoder, encoder state is: ${encoder.state}`);
-            encoder.close();
-
-            if (chunkNo === DRYRUN_NUM_FRAMES) {
-                logDryrun(`All ${DRYRUN_NUM_FRAMES} frames were encoded into H.264 bitstream packages.`);
-            } else {
-                errorDryrun(`Only ${chunkNo} H.264 bitstream packages were generated out of ${DRYRUN_NUM_FRAMES} frames.`);
-            }
-
-            logDryrun('Done.');
         }
 
         $('button#run').click(async () => {
