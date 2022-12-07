@@ -308,7 +308,9 @@
                 webGlContext.viewport(0, 0, webGlContext.canvas.width, webGlContext.canvas.height);
                 webGlContext.clearColor(Math.random(), Math.random(), Math.random(), 0);
                 webGlContext.clear(webGlContext.COLOR_BUFFER_BIT);
-                return new VideoFrame(webGlContext.canvas, {
+
+                const bitmap = await createImageBitmap(webGlContext.canvas);
+                return new VideoFrame(bitmap, {
                     timestamp,
                     duration,
                     alpha: userConfig.alpha,
